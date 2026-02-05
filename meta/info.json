@@ -1,28 +1,3 @@
----
-license: apache-2.0
-task_categories:
-- robotics
-tags:
-- LeRobot
-configs:
-- config_name: default
-  data_files: data/*/*.parquet
----
-
-This dataset was created using [LeRobot](https://github.com/huggingface/lerobot).
-
-## Dataset Description
-
-
-
-- **Homepage:** [More Information Needed]
-- **Paper:** [More Information Needed]
-- **License:** apache-2.0
-
-## Dataset Structure
-
-[meta/info.json](meta/info.json):
-```json
 {
     "codebase_version": "v3.0",
     "robot_type": "so101_follower",
@@ -127,13 +102,3 @@ This dataset was created using [LeRobot](https://github.com/huggingface/lerobot)
         }
     }
 }
-```
-
-
-## Citation
-
-**BibTeX:**
-
-```bibtex
-[More Information Needed]
-```

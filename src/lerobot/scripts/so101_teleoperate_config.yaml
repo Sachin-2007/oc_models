@@ -1,0 +1,94 @@
+# lerobot-teleoperate --config so101_teleoperate_config.yaml
+
+# SO-101 Teleoperation Configuration
+# This config file contains all the parameters needed for teleoperating SO-101 robotic arms
+# Usage: lerobot-teleoperate --config so101_teleoperate_config.yaml
+
+# Robot Configuration (SO-101 Follower Arm)
+robot:
+  type: so101_follower
+  port: /dev/ttyACM1  # Update this with your actual follower arm port
+  id: follower  # Unique identifier for calibration files
+  
+  cameras:
+    left:
+      type: opencv
+      index_or_path: 0
+      width: 640
+      height: 480
+      fps: 30
+  # Safety limits
+  disable_torque_on_disconnect: true
+  max_relative_target: null  # Set to 5.0 for safety during initial testing, null for full range
+  
+  # Motor configuration
+  use_degrees: false  # Set to true for backward compatibility with older policies/datasets
+
+# Teleoperator Configuration (SO-101 Leader Arm)
+teleop:
+  type: so101_leader
+  port: /dev/ttyACM0  # Update this with your actual leader arm port
+  id: leader  # Unique identifier for calibration files
+  
+  # Motor configuration
+  use_degrees: false  # Should match robot configuration
+
+# Teleoperation Settings
+fps: 60  # Maximum frames per second for teleoperation loop
+teleop_time_s: null  # Duration in seconds (null for unlimited)
+display_data: true  # Enable real-time visualization with Rerun
+
+# Alternative configurations for different setups:
+
+# Uncomment below for bimanual SO-101 setup:
+# robot:
+#   type: bi_so101_follower  # Note: This would need to be implemented if not available
+#   left_arm_port: /dev/tty.usbmodem5A460851411
+#   right_arm_port: /dev/tty.usbmodem5A460812391
+#   id: bimanual_follower
+#   left_arm_disable_torque_on_disconnect: true
+#   right_arm_disable_torque_on_disconnect: true
+#   left_arm_max_relative_target: null
+#   right_arm_max_relative_target: null
+#   left_arm_use_degrees: false
+#   right_arm_use_degrees: false
+#   cameras:
+#     left:
+#       type: opencv
+#       index_or_path: 0
+#       width: 1920
+#       height: 1080
+#       fps: 30
+#     top:
+#       type: opencv
+#       index_or_path: 1
+#       width: 1920
+#       height: 1080
+#       fps: 30
+#     right:
+#       type: opencv
+#       index_or_path: 2
+#       width: 1920
+#       height: 1080
+#       fps: 30
+
+# teleop:
+#   type: bi_so101_leader  # Note: This would need to be implemented if not available
+#   left_arm_port: /dev/tty.usbmodem5A460828611
+#   right_arm_port: /dev/tty.usbmodem5A460826981
+#   id: bimanual_leader
+
+# Instructions for use:
+# 1. First, find your robot ports using: lerobot-find-port
+# 2. Update the port values above with your actual device ports
+# 3. Set up motors using: lerobot-setup-motors --robot.type=so101_follower --robot.port=YOUR_FOLLOWER_PORT
+# 4. Set up motors using: lerobot-setup-motors --teleop.type=so101_leader --teleop.port=YOUR_LEADER_PORT
+# 5. Calibrate follower: lerobot-calibrate --robot.type=so101_follower --robot.port=YOUR_FOLLOWER_PORT --robot.id=my_awesome_follower_arm
+# 6. Calibrate leader: lerobot-calibrate --teleop.type=so101_leader --teleop.port=YOUR_LEADER_PORT --teleop.id=my_awesome_leader_arm
+# 7. Run teleoperation: lerobot-teleoperate --config so101_teleoperate_config.yaml
+
+# Safety Notes:
+# - Start with max_relative_target: 5.0 for initial testing
+# - Ensure leader and follower arms are in similar positions before starting
+# - Keep emergency stop accessible
+# - Test with limited movement range first

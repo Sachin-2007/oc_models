@@ -1,0 +1,194 @@
+# lerobot-record --config so101_record_config.yaml
+
+# SO-101 Dataset Recording Configuration
+# This config file contains all the parameters needed for recording datasets with SO-101 robotic arms
+# Usage: lerobot-record --config so101_record_config.yaml
+
+# Robot Configuration (SO-101 Follower Arm)
+robot:
+  type: so101_follower
+  port: /dev/ttyACM1  # Update this with your actual follower arm port
+  id: follower  # Unique identifier for calibration files
+  
+  # Safety limits
+  disable_torque_on_disconnect: true
+  max_relative_target: null  # Set to 5.0 for safety during initial testing, null for full range
+  
+  # Motor configuration
+  use_degrees: false  # Set to true for backward compatibility with older policies/datasets
+  
+  # Camera configuration (required for dataset recording)
+  cameras: 
+    # Wrist-mounted camera for end-effector view
+    topfront:
+      type: opencv
+      index_or_path: 2  # Update with your wrist camera index or path
+      width: 1920  # Camera resolution width
+      height: 1080  # Camera resolution height
+      fps: 30  # Camera frames per second
+    
+    # Example of additional cameras
+    # side:
+    #   type: opencv
+    #   index_or_path: 2
+    #   width: 640
+    #   height: 480
+    #   fps: 30
+    # top:
+    #   type: realsense
+    #   serial_number_or_name: 233522074606
+    #   width: 640
+    #   height: 480
+    #   fps: 30
+
+# Teleoperator Configuration (SO-101 Leader Arm)
+teleop:
+  type: so101_leader
+  port: /dev/ttyACM0  # Update this with your actual leader arm port
+  id: leader  # Unique identifier for calibration files
+  
+  # Motor configuration
+  use_degrees: false  # Should match robot configuration
+
+# Dataset Configuration
+dataset:
+  # Dataset repository identifier (format: username/dataset_name)
+  repo_id: RaspberryVitriol/multi4  # UPDATE THIS with your HuggingFace username
+  
+  # Task description (be specific and descriptive)
+  single_task: "Pick up the object and place it in the empty space"  # UPDATE THIS with your task
+  
+  # Recording parameters
+  num_episodes: 3  # Number of episodes to record
+  episode_time_s: 15  # Duration of each episode in seconds
+  reset_time_s: 10  # Time between episodes for environment reset
+  fps: 30  # Recording frames per second (should match camera fps)
+  
+  # Dataset storage and publishing
+  root: null  # Local storage directory (null uses default)
+  push_to_hub: true  # Upload dataset to HuggingFace Hub
+  private: false  # Set to true for private repository
+  video: true  # Encode frames into video format for storage efficiency
+  
+  # # Performance optimization
+  # num_image_writer_processes: 0  # Number of processes for image writing (0 = threads only)
+  # num_image_writer_threads_per_camera: 4  # Threads per camera for image writing
+  # video_encoding_batch_size: 1  # Episodes to record before batch encoding videos
+  
+  # Optional: Dataset tags for organization on the Hub
+  tags:
+    - "robotics"
+    - "manipulation"
+    - "so101"
+    - "imitation-learning"
+  
+  # Optional: Rename observation keys (advanced usage)
+  rename_map: {}
+
+# Recording Settings
+display_data: true  # Enable real-time visualization with Rerun
+play_sounds: true  # Enable vocal synthesis for recording events
+resume: false  # Resume recording on existing dataset (set to true to continue interrupted recording)
+
+# Optional: Policy-based recording (uncomment to use a policy instead of/with teleoperation)
+# policy:
+#   path: your_username/your_trained_policy  # Path to pre-trained policy on Hub
+#   # Additional policy-specific parameters can be added here
+
+# Alternative configurations for different recording scenarios:
+
+# Example 1: High-resolution recording for vision-heavy tasks
+# robot:
+#   cameras:
+#     front:
+#       type: opencv
+#       index_or_path: 0
+#       width: 1920
+#       height: 1080
+#       fps: 30
+#     side:
+#       type: opencv
+#       index_or_path: 1
+#       width: 1920
+#       height: 1080
+#       fps: 30
+
+# Example 2: Quick prototyping with lower quality
+# dataset:
+#   num_episodes: 5
+#   episode_time_s: 15
+#   fps: 15
+# robot:
+#   cameras:
+#     front:
+#       width: 320
+#       height: 240
+#       fps: 15
+
+# Example 3: Bimanual SO-101 setup (if available)
+# robot:
+#   type: bi_so101_follower  # Note: Implementation may vary
+#   left_arm_port: /dev/ttyACM1
+#   right_arm_port: /dev/ttyACM2
+#   id: bimanual_follower
+#   cameras:
+#     left:
+#       type: opencv
+#       index_or_path: 0
+#       width: 640
+#       height: 480
+#       fps: 30
+#     top:
+#       type: opencv
+#       index_or_path: 1
+#       width: 640
+#       height: 480
+#       fps: 30
+#     right:
+#       type: opencv
+#       index_or_path: 2
+#       width: 640
+#       height: 480
+#       fps: 30
+
+# teleop:
+#   type: bi_so101_leader
+#   left_arm_port: /dev/ttyACM3
+#   right_arm_port: /dev/ttyACM4
+#   id: bimanual_leader
+
+# Instructions for use:
+# 1. Update the ports with your actual device ports (use lerobot-find-port)
+# 2. Update the repo_id with your HuggingFace username
+# 3. Update the single_task with your specific task description
+# 4. Ensure cameras are properly configured and accessible
+#    - Use lerobot-find-cameras opencv to detect available cameras
+#    - Test wrist camera mount and positioning before recording
+#    - Make sure wrist camera cable doesn't interfere with arm movement
+# 5. Make sure both robot and teleoperator are calibrated
+# 6. Run: lerobot-record --config so101_record_config.yaml
+
+# Recording Tips:
+# - Start with a small number of episodes (5-10) for testing
+# - Make sure your environment is well-lit for good camera footage
+# - Practice the task a few times before recording
+# - Use descriptive and consistent task descriptions
+# - Reset the environment to the same initial state before each episode
+# - Use the display_data visualization to monitor recording quality
+# 
+# Wrist Camera Specific Tips:
+# - Mount the wrist camera securely to avoid vibrations during movement
+# - Position the camera to capture the gripper and immediate workspace
+# - Test camera orientation - ensure it provides useful end-effector perspective
+# - Check that the camera cable has enough slack for full range of motion
+# - Consider using a smaller, lighter camera if arm movement is affected
+# - Wrist camera view complements external cameras for better manipulation understanding
+# - Use descriptive and consistent task descriptions
+# - Reset the environment to the same initial state before each episode
+# - Use the display_data visualization to monitor recording quality
+
+# Troubleshooting:
+# - If recording is choppy, try reducing fps or camera resolution
+# - If storage fills up quickly, consider reducing video quality or using video encoding
+# - If upload fails, check your HuggingFace authentication with `huggingface-cli login`
+# - For performance issues, adjust num_image_writer_threads_per_camera (try 2-8)

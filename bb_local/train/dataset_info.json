@@ -1,0 +1,68 @@
+{
+  "builder_name": "parquet",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "pick_place_tape",
+  "dataset_size": 2185158,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/aadarshram/pick_place_tape@54b58fece4016576990cf8539d6b01671d9ed318/data/chunk-000/file-000.parquet": {
+      "num_bytes": 471441,
+      "checksum": null
+    }
+  },
+  "download_size": 471441,
+  "features": {
+    "action": {
+      "feature": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "_type": "List"
+    },
+    "observation.state": {
+      "feature": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "_type": "List"
+    },
+    "timestamp": {
+      "dtype": "float64",
+      "_type": "Value"
+    },
+    "frame_index": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "episode_index": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "index": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "task_index": {
+      "dtype": "int64",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 2656599,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 2185158,
+      "num_examples": 14954,
+      "dataset_name": "pick_place_tape"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}
