@@ -30,20 +30,13 @@ class SyntheticOCDataset(Dataset):
 
     def __getitem__(self, idx):
         # Create dummy data matching expected shapes
-        # Config expects:
-        # state: (6,)
-        # images: (3, 96, 96)
-        # masks: (2, 96, 96)
-        # action: (6,)
-        
-        # But wait, the policy usually handles the stacking of history if we rely on queues?
-        # NO, during training (offline), the dataset must provide the history window.
-        # "observation.state": (n_obs_steps, state_dim)
+        # Two separate mask keys as expected by mask_feature_keys config
         
         return {
             "observation.state": torch.randn(self.n_obs_steps, 6),
             "observation.images": torch.randn(self.n_obs_steps, 3, self.h, self.w),
-            "observation.masks": torch.rand(self.n_obs_steps, 2, self.h, self.w),
+            "observation.masks.i_mask": torch.rand(self.n_obs_steps, 1, self.h, self.w),  # Tiger mask
+            "observation.masks.f_mask": torch.rand(self.n_obs_steps, 1, self.h, self.w),  # Elephant mask
             "action": torch.randn(self.horizon, 6),
             "action_is_pad": torch.zeros(self.horizon, dtype=torch.bool),
             "index": idx
@@ -62,7 +55,8 @@ def train_synthetic():
         output_features={
             "action": PolicyFeature(type=FeatureType.ACTION, shape=(6,))
         },
-        mask_feature_key="observation.masks",
+        mask_feature_key=None,  # Disable single key
+        mask_feature_keys=["observation.masks.i_mask", "observation.masks.f_mask"],
         num_object_masks=2,
         vision_backbone="resnet18",
         crop_shape=(84, 84),

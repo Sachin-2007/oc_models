@@ -1,10 +1,10 @@
-
 import logging
 import torch
 from torch.utils.data import DataLoader
 from lerobot.policies.oc_diffusion.configuration_oc_diffusion import OCDiffusionConfig
 from lerobot.policies.oc_diffusion.modeling_oc_diffusion import OCDiffusionPolicy
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
+from lerobot.configs.types import FeatureType, PolicyFeature
 from termcolor import colored
 from pathlib import Path
 
@@ -14,14 +14,8 @@ logger = logging.getLogger(__name__)
 
 def train():
     # Constants
-    DATASET_REPO_ID = "aadarshram/pick_place_tiger_near_elephant_segmented"
-    # Assuming dataset is local in 'data' directory relative to where we run or standard cache
-    # If we created it in 'data/...' locally, LeRobotDataset(root='data') might find it?
-    # Or strict path.
-    # The segmentation script output to `data/aadarshram...`.
-    # So root should be `data`.
-    
-    ROOT_DIR = Path("data")
+    DATASET_REPO_ID = "RaspberryVitriol/oc_segment"
+    ROOT_DIR = Path("data") / DATASET_REPO_ID
     
     # 1. Config
     config = OCDiffusionConfig(
@@ -30,12 +24,13 @@ def train():
         n_action_steps=8,
         # Input features matching the dataset
         input_features={
-            "observation.state": {"type": "STATE", "shape": (6,)}, # Verify shape!
-            "observation.images.top_phone": {"type": "VISUAL", "shape": (3, 96, 96)},
+            "observation.state": PolicyFeature(type=FeatureType.STATE, shape=(6,)), # Verify shape!
+            "observation.images.top_phone": PolicyFeature(type=FeatureType.VISUAL, shape=(3, 480, 640)),
         },
         output_features={
-            "action": {"type": "ACTION", "shape": (6,)} # Verify shape!
+            "action": PolicyFeature(type=FeatureType.ACTION, shape=(6,)) # Verify shape!
         },
+        mask_feature_key=None, # Disable default check for "observation.masks"
         mask_feature_keys=["observation.images.i_mask", "observation.images.f_mask"],
         num_object_masks=2,
         vision_backbone="resnet18",
@@ -51,8 +46,32 @@ def train():
     # 2. Dataset
     # We need to verify shapes. LeRobotDataset handles loading.
     # We use the dataset created by segment script.
+    # Create delta_timestamps for chunking
+    # Action: Horizon steps into the future (0 to horizon-1)
+    dt = 1.0 / 30.0 # Assuming 30 fps
+    action_deltas = [i * dt for i in range(config.horizon)]
+    
+    # Observation: n_obs_steps (history usually). 
+    # If n_obs_steps=2, we usually want [0] and [-1]? Or [-1, 0]?
+    # OCDiffusion default usually expects history.
+    # Let's assume [-dt, 0] for 2 steps.
+    obs_deltas = [ -(config.n_obs_steps - 1 - i) * dt for i in range(config.n_obs_steps) ]
+    
+    delta_timestamps = {
+        "action": action_deltas,
+        "observation.state": obs_deltas,
+        "observation.images.top_phone": obs_deltas,
+        # Masks should align with observation
+        "observation.images.i_mask": obs_deltas,
+        "observation.images.f_mask": obs_deltas
+    }
+    
     logger.info("Loading dataset...")
-    dataset = LeRobotDataset(DATASET_REPO_ID, root=ROOT_DIR)
+    dataset = LeRobotDataset(
+        DATASET_REPO_ID, 
+        root=ROOT_DIR,
+        delta_timestamps=delta_timestamps
+    )
     
     # Check features to update config if needed
     # (Optional auto-configuration or validation)

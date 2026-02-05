@@ -388,6 +388,9 @@ class LeRobotDatasetMetadata:
             episode_dict["dataset_from_index"] = [self.latest_episode["dataset_to_index"][0]]
             episode_dict["dataset_to_index"] = [self.latest_episode["dataset_to_index"][0] + num_frames]
 
+        # Ensure consistent key order for Parquet schema
+        episode_dict = {k: episode_dict[k] for k in sorted(episode_dict.keys())}
+        
         # Add to buffer
         self.metadata_buffer.append(episode_dict)
         self.latest_episode = episode_dict

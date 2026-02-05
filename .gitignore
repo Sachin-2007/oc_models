@@ -177,3 +177,31 @@ outputs/
 *.urdf
 *.xml
 *.part
+
+### Large Files ###
+# Images
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.bmp
+*.tiff
+
+# Videos
+*.mp4
+*.webm
+*.avi
+*.mov
+*.mkv
+
+# Segmentation results
+*_segment_results/
+*_masks_viz/
+
+# Model checkpoints (if local)
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+
