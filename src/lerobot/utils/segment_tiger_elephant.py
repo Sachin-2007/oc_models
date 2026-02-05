@@ -12,6 +12,7 @@ from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.datasets.video_utils import encode_video_frames
 import shutil
 from pathlib import Path
+import torchvision
 
 # Configure logging
 logging.basicConfig(
@@ -315,6 +316,9 @@ def main():
     new_ds_meta._close_writer()
     logger.info("Done!")
 
+    # Finalize
+    new_ds_meta._close_writer()
+    logger.info("Done!")
+
 if __name__ == "__main__":
-    import torchvision
     main()
