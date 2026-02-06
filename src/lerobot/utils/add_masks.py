@@ -1,9 +1,15 @@
+"""
+Add segmentation masks to a LeRobot dataset.
+
+Uses hybrid segmentation approach from segment/hybrid_segment.py:
+- TIGER (i_mask): HSV color detection → SAM
+- ELEPHANT (f_mask): GroundingDINO → SAM
+"""
 
 import argparse
 import logging
 import torch
 import numpy as np
-import cv2
 from PIL import Image
 from pathlib import Path
 import shutil
@@ -11,6 +17,14 @@ import shutil
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
 from transformers import SamModel, SamProcessor
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+# Import segmentation functions from hybrid_segment
+from lerobot.utils.segment.hybrid_segment import (
+    find_tiger_box,
+    find_elephant_box,
+    segment_with_sam,
+    DEVICE
+)
 
 # Configure logging
 logging.basicConfig(
@@ -20,15 +34,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# HSV color ranges for tiger (orange) - reliable detection
-ORANGE_LOWER = np.array([8, 150, 120])
-ORANGE_UPPER = np.array([22, 255, 255])
-
-# GroundingDINO prompt for elephant
-ELEPHANT_PROMPT = "grey elephant toy."
-
 
 def load_models(device):
+    """Load GroundingDINO and SAM models."""
     logger.info(f"Loading models on {device}...")
     
     # Grounding DINO for elephant detection
@@ -42,112 +50,12 @@ def load_models(device):
     return gd_processor, gd_model, sam_processor, sam_model
 
 
-def find_tiger_box(image_np, min_area=500, expand_ratio=0.5):
-    """
-    Find tiger using HSV color detection (orange).
-    Returns: [x1, y1, x2, y2] bounding box or None
-    """
-    h, w = image_np.shape[:2]
-    
-    # Convert to HSV
-    bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
-    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    
-    # Create mask for orange
-    mask = cv2.inRange(hsv, ORANGE_LOWER, ORANGE_UPPER)
-    
-    # Clean up mask
-    kernel = np.ones((5, 5), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    
-    # Find contours
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    if not contours:
-        return None
-    
-    # Get largest contour
-    largest = max(contours, key=cv2.contourArea)
-    if cv2.contourArea(largest) < min_area:
-        return None
-    
-    # Get bounding box and expand
-    x, y, bw, bh = cv2.boundingRect(largest)
-    expand_w = int(bw * expand_ratio / 2)
-    expand_h = int(bh * expand_ratio / 2)
-    
-    x1 = max(0, x - expand_w)
-    y1 = max(0, y - expand_h)
-    x2 = min(w, x + bw + expand_w)
-    y2 = min(h, y + bh + expand_h)
-    
-    return [x1, y1, x2, y2]
-
-
-def find_elephant_box(image_pil, gd_processor, gd_model, device):
-    """
-    Find elephant using GroundingDINO.
-    Returns: [x1, y1, x2, y2] bounding box or None
-    """
-    inputs = gd_processor(images=image_pil, text=ELEPHANT_PROMPT, return_tensors="pt").to(device)
-    
-    with torch.no_grad():
-        outputs = gd_model(**inputs)
-    
-    results = gd_processor.post_process_grounded_object_detection(
-        outputs,
-        inputs.input_ids,
-        box_threshold=0.25,
-        text_threshold=0.25,
-        target_sizes=[image_pil.size[::-1]]
-    )[0]
-    
-    if len(results["boxes"]) == 0:
-        return None
-    
-    # Get highest scoring box
-    max_idx = results["scores"].argmax()
-    box = results["boxes"][max_idx].tolist()
-    
-    return box
-
-
-def segment_with_sam(image_pil, box, sam_processor, sam_model, device):
-    """
-    Segment using SAM with a bounding box prompt.
-    Returns: Binary mask as numpy array (H, W) with values 0 or 255
-    """
-    if box is None:
-        return np.zeros((image_pil.height, image_pil.width), dtype=np.uint8)
-    
-    input_boxes = [[box]]
-    inputs = sam_processor(image_pil, input_boxes=input_boxes, return_tensors="pt").to(device)
-    
-    with torch.no_grad():
-        outputs = sam_model(**inputs)
-    
-    masks = sam_processor.image_processor.post_process_masks(
-        outputs.pred_masks,
-        inputs["original_sizes"],
-        inputs["reshaped_input_sizes"]
-    )[0]
-    
-    # Combine masks
-    h, w = image_pil.height, image_pil.width
-    combined = np.zeros((h, w), dtype=bool)
-    for m in masks:
-        combined = np.logical_or(combined, m[0].cpu().numpy())
-    
-    return (combined * 255).astype(np.uint8)
-
-
 def main():
     parser = argparse.ArgumentParser(description="Add segmentation masks to a LeRobot dataset using hybrid approach.")
     parser.add_argument("--repo-id", type=str, required=True, help="Source LeRobot dataset repository ID.")
     parser.add_argument("--output-repo-id", type=str, required=True, help="Target LeRobot dataset repository ID.")
     parser.add_argument("--image-key", type=str, default="observation.images.top_phone", help="Key of the image feature to segment.")
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--device", type=str, default=DEVICE)
     parser.add_argument("--push-to-hub", action="store_true", help="Push the result to Hugging Face Hub.")
 
     args = parser.parse_args()
@@ -230,13 +138,13 @@ def main():
             
         image_pil = Image.fromarray(img_np)
         
-        # Tiger: HSV color detection -> SAM
+        # Tiger: HSV color detection -> SAM (from hybrid_segment)
         tiger_box = find_tiger_box(img_np)
-        tiger_mask = segment_with_sam(image_pil, tiger_box, sam_processor, sam_model, device)
+        tiger_mask = segment_with_sam(image_pil, tiger_box, sam_processor, sam_model)
         
-        # Elephant: GroundingDINO -> SAM
-        elephant_box = find_elephant_box(image_pil, gd_processor, gd_model, device)
-        elephant_mask = segment_with_sam(image_pil, elephant_box, sam_processor, sam_model, device)
+        # Elephant: GroundingDINO -> SAM (from hybrid_segment)
+        elephant_box = find_elephant_box(image_pil, gd_processor, gd_model)
+        elephant_mask = segment_with_sam(image_pil, elephant_box, sam_processor, sam_model)
         
         # Convert to 3-channel for video compatibility (H, W) -> (3, H, W)
         tiger_mask_3ch = np.stack([tiger_mask, tiger_mask, tiger_mask], axis=0)
@@ -290,6 +198,7 @@ def main():
         logger.info(f"Pushing to hub: {args.output_repo_id}")
         new_ds.push_to_hub()
         logger.info("Push complete.")
+
 
 if __name__ == "__main__":
     main()
